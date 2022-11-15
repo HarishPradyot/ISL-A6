@@ -38,10 +38,9 @@ class Dyn_CNN(nn.Module):
         self.relu_layers = nn.ModuleList([nn.ReLU() for i in range(len(config))])
         self.fc_in_h = input_dim[0]
         self.fc_in_w = input_dim[1]
-        for i,o,s,f,p in config:       #stride=(heightxwidth)
+        for i,o,s,f,p in config:
             self.fc_in_h = ((self.fc_in_h-f[0]+2*p)//s)+1
             self.fc_in_w = ((self.fc_in_w-f[1]+2*p)//s)+1
-        # print('in_features = ' , config[-1][1]*self.fc_in_h*self.fc_in_w)
         self.fc = nn.Linear(in_features = config[-1][1]*self.fc_in_h*self.fc_in_w, out_features=num_classes)
         self.flatten = nn.Flatten()
         self.softmax = nn.Softmax(dim=1)
@@ -86,8 +85,11 @@ def loss_fun(y_pred, y_actual):
     v = torch.sum(v)
     return v
 
-def get_optim(model, lr=1e-6):
-    optim = torch.optim.SGD(model.parameters(), lr = lr)
+def get_lossFn():
+    return loss_fun
+
+def get_optim(DynCNN_model, lr=1e-6):
+    optim = torch.optim.SGD(DynCNN_model.parameters(), lr = lr)
     return optim
 
 def get_num_classes(train_data):
@@ -105,11 +107,11 @@ def get_input_dim(train_dataloader):
     
     return _x[2],_x[3] #heightxwidth
 
-def get_model(config, input_dim, num_classes):
-    model = Dyn_CNN(config, input_dim, num_classes)
-    return model
+def get_DynCNN_model(config, input_dim, num_classes):
+    DynCNN_model = Dyn_CNN(config, input_dim, num_classes)
+    return DynCNN_model
 
-def train_network(train_dataloader, model, optim, loss_fn, epochs=5):
+def train_network(train_dataloader, DynCNN_model, optim, loss_fn, epochs=5):
     print('Training the Model\n\n')
     for epoch in range(epochs):
         running_loss = 0.0
@@ -117,7 +119,7 @@ def train_network(train_dataloader, model, optim, loss_fn, epochs=5):
             inputs, labels = data
             inputs , labels = inputs.to(device), labels.to(device)
             optim.zero_grad()
-            outputs = model(inputs)
+            outputs = DynCNN_model(inputs)
             tmp = torch.nn.functional.one_hot(labels, num_classes= 10)
             loss = loss_fn(outputs, tmp)
             loss.backward()
@@ -131,22 +133,21 @@ from sklearn.metrics import recall_score
 import numpy as np
 from sklearn.metrics import precision_recall_fscore_support
 
-!pip install torchmetrics
-
 from torchmetrics import Precision, Recall, F1Score, Accuracy
 from torchmetrics.classification import accuracy
 
-def test_network(dataloader, model, loss_fun):
+def test_network(dataloader, DynCNN_model, loss_fun):
+    print('Test results of the model')
     size = len(dataloader.dataset)
     num_batches = len(dataloader)
-    model.eval()
+    DynCNN_model.eval()
     test_loss, correct = 0, 0
     with torch.no_grad():
         for X, y in dataloader:
             X = X.to(device)
             y = y.to(device)
             tmp = torch.nn.functional.one_hot(y, num_classes= 10)
-            pred = model(X)
+            pred = DynCNN_model(X)
             test_loss += loss_fun(pred, tmp).item()
             correct += (pred.argmax(1) == y).type(torch.float).sum().item()
     test_loss/= num_batches
@@ -163,25 +164,25 @@ def test_network(dataloader, model, loss_fun):
     print('f1_score :', f1_score(pred,y))
     return accuracy1,precision, recall, f1_score
 
-train_data, test_data = get_datasets()
-train_dataloader, test_dataloader = get_dataloaders(train_data, test_data)
+# train_data, test_data = get_datasets()
+# train_dataloader, test_dataloader = get_dataloaders(train_data, test_data)
 
-num_classes = get_num_classes(test_data)
+# num_classes = get_num_classes(test_data)
 
-input_dim = get_input_dim(train_dataloader)
+# input_dim = get_input_dim(train_dataloader)
 
-#in_channels=i, out_channels=o, stride=s, kernel_size=k, padding=p
-config = [(1, 20, 1, (5,5), 0), (20, 50, 1, (5,5), 0)]
+# #in_channels=i, out_channels=o, stride=s, kernel_size=k, padding=p
+# config = [(1, 20, 1, (5,5), 0), (20, 50, 1, (5,5), 0)]
 
-# config, input_dim, num_classes
-model = get_model(config, input_dim, num_classes)
-model = model.to(device)
+# # config, input_dim, num_classes
+# model = get_model(config, input_dim, num_classes)
+# model = model.to(device)
 
-"""**3F) Train on training data set**"""
+# """**3F) Train on training data set**"""
 
-optim = get_optim(model)
-train_network(train_dataloader, model, optim, loss_fun)
+# optim = get_optim(model)
+# train_network(train_dataloader, model, optim, loss_fun)
 
-"""**3G) Test on the test data set - report accuracy, precision, recall and F1 scores.**"""
+# """**3G) Test on the test data set - report accuracy, precision, recall and F1 scores.**"""
 
-test_network(test_dataloader, model, loss_fun)
+# test_network(test_dataloader, model, loss_fun)
