@@ -98,11 +98,11 @@ def get_num_classes(train_data):
 def get_input_dim(train_dataloader):
     _x, _y = None,None
 
-    for X, y in test_dataloader:
+    for X, y in train_dataloader:
         _x = X.shape
         _y = y.shape
-        print(f"Shape of X: {X.shape}")
-        print(f"Shape of y: {y.shape} {y.dtype}")
+        print(f"Shape of X: {_x}")
+        print(f"Shape of y: {_y} {y.dtype}")
         break
     
     return _x[2],_x[3] #heightxwidth
